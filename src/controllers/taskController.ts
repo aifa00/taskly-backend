@@ -7,6 +7,7 @@ import {
   uploadFilesToS3,
 } from "../utils/S3Utils";
 import mongoose from "mongoose";
+import { userSockets } from "../sockets/socket";
 
 export const getTasks = async (
   req: Request,
@@ -15,8 +16,11 @@ export const getTasks = async (
 ) => {
   try {
     const { status } = req.query;
+    const userId = res.locals.userId;
 
-    const query: any = {};
+    const query: any = {
+      userId: new mongoose.Types.ObjectId(userId as string),
+    };
 
     // Handle: Filter
     if (status) {
@@ -77,6 +81,7 @@ export const addNewTask = async (
       req.body;
     const io = req.app.locals.io;
     const userId = res.locals.userId;
+    const socketId = userSockets[userId];
     const files = (req as any).files;
     const folder = "attachments";
 
@@ -117,7 +122,7 @@ export const addNewTask = async (
     await newTask.save();
 
     // Emit to all connected clients
-    io.emit("taskAdded", {
+    io.to(socketId).emit("taskAdded", {
       _id: newTask._id,
       title: newTask.title,
       status: newTask.status,
@@ -182,6 +187,8 @@ export const editTask = async (
       priority,
     } = req.body;
     const io = req.app.locals.io;
+    const userId = res.locals.userId;
+    const socketId = userSockets[userId];
 
     if (!title) {
       throw new AppError(400, "Title is required");
@@ -222,7 +229,7 @@ export const editTask = async (
 
     await task.save();
 
-    io.emit("taskUpdated", {
+    io.to(socketId).emit("taskUpdated", {
       _id: task._id,
       title: task.title,
       status: task.status,
@@ -245,6 +252,8 @@ export const deleteTask = async (
   try {
     const { taskId } = req.params;
     const io = req.app.locals.io;
+    const userId = res.locals.userId;
+    const socketId = userSockets[userId];
 
     const task = await Task.findById(taskId, "attachments status");
 
@@ -265,7 +274,7 @@ export const deleteTask = async (
 
     await Task.findByIdAndDelete(taskId);
 
-    io.emit("taskDeleted", {
+    io.to(socketId).emit("taskDeleted", {
       _id: task._id,
       status: task.status,
     });

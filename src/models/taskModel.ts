@@ -2,6 +2,10 @@ import mongoose, { Schema, model } from "mongoose";
 
 const taskSchema = new Schema(
   {
+    userId: {
+      type: mongoose.Types.ObjectId,
+      ref: "User",
+    },
     title: {
       type: String,
       required: true,
